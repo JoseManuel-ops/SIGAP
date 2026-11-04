@@ -1,5 +1,5 @@
 # Modelos SQLModel. Reflejan las tablas de db/esquema.sql, que es quien crea el esquema.
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Optional
 
@@ -120,9 +120,9 @@ class Cobro(SQLModel, table=True):
     qr: Optional[str] = None
     expires_at: Optional[datetime] = Field(default=None, sa_type=DateTime(timezone=True))
     paid_amount: Optional[int] = None
-    paid_at: Optional[datetime] = Field(default=None, sa_type=DateTime(timezone=True))
+    collected_at: Optional[datetime] = Field(default=None, sa_type=DateTime(timezone=True))
     payer: Optional[dict] = Field(default=None, sa_type=JSONB)
-    created_at: Optional[datetime] = Field(default=None, sa_type=DateTime(timezone=True))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_type=DateTime(timezone=True))
 
 
 class Factura(SQLModel, table=True):
@@ -135,4 +135,4 @@ class Factura(SQLModel, table=True):
     public_url: Optional[str] = None
     qr_url: Optional[str] = None
     validated_at: Optional[datetime] = Field(default=None, sa_type=DateTime(timezone=True))
-    created_at: Optional[datetime] = Field(default=None, sa_type=DateTime(timezone=True))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_type=DateTime(timezone=True))

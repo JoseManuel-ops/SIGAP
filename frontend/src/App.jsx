@@ -3,8 +3,12 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import Layout from "./components/Layout.jsx";
 import { cerrarSesion, tomarMotivoDeCierre } from "./lib/sesion.js";
 import { supabase } from "./lib/supabase.js";
+import DespachoDetalle from "./pages/DespachoDetalle.jsx";
+import Despachos from "./pages/Despachos.jsx";
 import Jaulas from "./pages/Jaulas.jsx";
 import Login from "./pages/Login.jsx";
+import NuevoDespacho from "./pages/NuevoDespacho.jsx";
+import PagoPublico from "./pages/PagoPublico.jsx";
 import Proximamente from "./pages/Proximamente.jsx";
 
 const ROLES_VALIDOS = ["admin", "operario"];
@@ -17,7 +21,8 @@ function PantallaCentrada({ children }) {
   );
 }
 
-export default function App() {
+// Todo lo que exige iniciar sesión.
+function AreaPrivada() {
   // undefined: todavía no se sabe si hay sesión. null: no hay sesión.
   const [sesion, setSesion] = useState(undefined);
   const [avisoLogin, setAvisoLogin] = useState("");
@@ -65,17 +70,29 @@ export default function App() {
   }
 
   return (
+    <Routes>
+      <Route element={<Layout usuario={sesion.user} rol={rol} />}>
+        <Route path="/jaulas" element={<Jaulas />} />
+        <Route path="/despachos" element={<Despachos />} />
+        <Route path="/despachos/nuevo" element={<NuevoDespacho />} />
+        <Route path="/despachos/:ref" element={<DespachoDetalle />} />
+        <Route
+          path="/conciliacion"
+          element={rol === "admin" ? <Proximamente titulo="Conciliación" /> : <Navigate to="/jaulas" replace />}
+        />
+        <Route path="*" element={<Navigate to="/jaulas" replace />} />
+      </Route>
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
     <BrowserRouter>
       <Routes>
-        <Route element={<Layout usuario={sesion.user} rol={rol} />}>
-          <Route path="/jaulas" element={<Jaulas />} />
-          <Route path="/despachos" element={<Proximamente titulo="Despachos" />} />
-          <Route
-            path="/conciliacion"
-            element={rol === "admin" ? <Proximamente titulo="Conciliación" /> : <Navigate to="/jaulas" replace />}
-          />
-          <Route path="*" element={<Navigate to="/jaulas" replace />} />
-        </Route>
+        {/* Pública: el comprador paga sin iniciar sesión. */}
+        <Route path="/pagar/:ref" element={<PagoPublico />} />
+        <Route path="*" element={<AreaPrivada />} />
       </Routes>
     </BrowserRouter>
   );

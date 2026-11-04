@@ -114,7 +114,7 @@ create table cobro (
   qr text,
   expires_at timestamptz,
   paid_amount integer,
-  paid_at timestamptz,
+  collected_at timestamptz,
   payer jsonb,
   created_at timestamptz not null default now()
 );
