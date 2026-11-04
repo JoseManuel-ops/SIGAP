@@ -13,13 +13,30 @@ load_dotenv()
 
 
 class ConfiguracionError(RuntimeError):
-    """Falta una variable de entorno necesaria."""
+    """Falta una variable de entorno necesaria o su valor no sirve."""
+
+
+# Lee una variable sin espacios ni saltos de línea, que se cuelan al pegarla en un panel.
+def variable(nombre: str) -> str | None:
+    valor = (os.getenv(nombre) or "").strip()
+    return valor or None
+
+
+# Lee una URL base, sin "/" final. Unas comillas o la falta de https:// se reportan aquí,
+# con el nombre de la variable, en vez de aparecer luego como un error de conexión.
+def url_base(nombre: str) -> str:
+    url = variable(nombre)
+    if not url:
+        raise ConfiguracionError(f"Falta la variable de entorno {nombre}")
+    if not url.startswith(("https://", "http://")):
+        raise ConfiguracionError(f"{nombre} debe empezar por https:// (revisa comillas o espacios)")
+    return url.rstrip("/")
 
 
 # El engine no guarda conexiones abiertas (NullPool); solo la configuración para abrirlas.
 @lru_cache
 def obtener_engine() -> Engine:
-    url = os.getenv("DATABASE_URL")
+    url = variable("DATABASE_URL")
     if not url:
         raise ConfiguracionError("Falta la variable de entorno DATABASE_URL")
 

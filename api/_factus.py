@@ -1,26 +1,22 @@
 # Cliente de Factus Facturación. El token OAuth se guarda en la base de datos: en serverless
 # no hay memoria entre peticiones.
-import os
 from datetime import datetime, timedelta, timezone
 
 import httpx
 from sqlmodel import Session
 
-from api._db import ConfiguracionError
-from api._factus_pay import ErrorFactus
+from api._db import ConfiguracionError, url_base, variable
+from api._factus_pay import ErrorFactus, registrar_fallo, registrar_respuesta
 from api._modelos import FactusToken
 
-# La DIAN puede demorar. La función de Vercel tiene 30 s (ver vercel.json).
+# La DIAN puede demorar. La función de Vercel tiene 60 s (ver vercel.json).
 TIEMPO_MAXIMO_S = 25
 # Renueva un minuto antes de vencer para que el token no expire a mitad de una petición.
 MARGEN_RENOVACION = timedelta(seconds=60)
 
 
 def _url() -> str:
-    url = os.getenv("FACTUS_URL")
-    if not url:
-        raise ConfiguracionError("Falta la variable de entorno FACTUS_URL")
-    return url.rstrip("/")
+    return url_base("FACTUS_URL")
 
 
 def _credenciales() -> dict:
@@ -30,7 +26,7 @@ def _credenciales() -> dict:
         "username": "FACTUS_USERNAME",
         "password": "FACTUS_PASSWORD",
     }
-    valores = {campo: os.getenv(variable) for campo, variable in nombres.items()}
+    valores = {campo: variable(nombre) for campo, nombre in nombres.items()}
     if not all(valores.values()):
         raise ConfiguracionError("Faltan credenciales de Factus (FACTUS_CLIENT_ID y demás)")
     return valores
@@ -38,18 +34,29 @@ def _credenciales() -> dict:
 
 # Devuelve la respuesta de /oauth/token, o None si Factus rechazó los datos.
 def _pedir_token(datos: dict) -> dict | None:
+    url = f"{_url()}/oauth/token"
     try:
         respuesta = httpx.post(
-            f"{_url()}/oauth/token",
+            url,
             data=datos,
             headers={"Accept": "application/json"},
             timeout=TIEMPO_MAXIMO_S,
         )
-    except httpx.TimeoutException:
+    except httpx.TimeoutException as error:
+        registrar_fallo("Factus", "POST", url, error)
         raise ErrorFactus(504, "Factus tardó demasiado en autenticar. Intenta de nuevo.")
-    except httpx.HTTPError:
+    except (httpx.HTTPError, httpx.InvalidURL) as error:
+        registrar_fallo("Factus", "POST", url, error)
         raise ErrorFactus(502, "No se pudo conectar con Factus. Intenta de nuevo.")
-    return respuesta.json() if respuesta.is_success else None
+    if respuesta.is_success:
+        return respuesta.json()
+    try:
+        cuerpo = respuesta.json()
+    except ValueError:
+        cuerpo = {}
+    # Incluye el tipo de acceso: un refresh vencido es normal; una clave rechazada, no.
+    registrar_respuesta("Factus", f"POST ({datos.get('grant_type')})", url, respuesta.status_code, cuerpo)
+    return None
 
 
 def _guardar_token(sesion: Session, respuesta: dict) -> str:
@@ -121,24 +128,32 @@ def _traducir_error(respuesta: httpx.Response, mensaje_409: str) -> ErrorFactus:
 # Petición autenticada. Ante un 401 renueva el token y reintenta una sola vez.
 def pedir(sesion: Session, metodo: str, ruta: str, mensaje_409: str = "Factus reportó un conflicto.", **opciones) -> dict:
     token = _token_vigente(sesion)
+    url = f"{_url()}{ruta}"
     for intento in (1, 2):
         try:
             respuesta = httpx.request(
                 metodo,
-                f"{_url()}{ruta}",
+                url,
                 headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
                 timeout=TIEMPO_MAXIMO_S,
                 **opciones,
             )
-        except httpx.TimeoutException:
+        except httpx.TimeoutException as error:
+            registrar_fallo("Factus", metodo, url, error)
             raise ErrorFactus(504, "Factus tardó demasiado en responder. Reintenta: con la misma referencia no se duplica el documento.")
-        except httpx.HTTPError:
+        except (httpx.HTTPError, httpx.InvalidURL) as error:
+            registrar_fallo("Factus", metodo, url, error)
             raise ErrorFactus(502, "No se pudo conectar con Factus. Intenta de nuevo.")
 
         if respuesta.status_code == 401 and intento == 1:
             token = _renovar_token(sesion)
             continue
         if not respuesta.is_success:
+            try:
+                cuerpo = respuesta.json()
+            except ValueError:
+                cuerpo = {}
+            registrar_respuesta("Factus", metodo, url, respuesta.status_code, cuerpo)
             raise _traducir_error(respuesta, mensaje_409)
         try:
             return respuesta.json()

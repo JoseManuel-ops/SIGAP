@@ -2,14 +2,13 @@
 # Supabase firma con una clave privada ES256; aquí se verifica con su clave pública (JWKS),
 # así que el backend no guarda ningún secreto para esto.
 import logging
-import os
 from functools import lru_cache
 
 import jwt
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from api._db import ConfiguracionError
+from api._db import url_base
 
 ROLES_VALIDOS = ("admin", "operario")
 
@@ -24,10 +23,7 @@ esquema_bearer = HTTPBearer(auto_error=False)
 
 
 def url_auth() -> str:
-    url = os.getenv("SUPABASE_URL")
-    if not url:
-        raise ConfiguracionError("Falta la variable de entorno SUPABASE_URL")
-    return f"{url.rstrip('/')}/auth/v1"
+    return f"{url_base('SUPABASE_URL')}/auth/v1"
 
 
 # El cliente guarda las claves públicas unos minutos solo para no descargarlas en cada

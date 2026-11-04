@@ -5,7 +5,7 @@
   "buildCommand": "npm run build --prefix frontend",
   "outputDirectory": "frontend/dist",
   "functions": {
-    "api/index.py": { "maxDuration": 30 }
+    "api/index.py": { "maxDuration": 60 }
   },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" },

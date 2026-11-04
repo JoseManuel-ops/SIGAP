@@ -6,8 +6,8 @@ import { fechaHora, kilos, pesos } from "../lib/formato.js";
 import { descargarPdfFactura } from "../lib/pdf.js";
 
 const INTERVALO_MS = 5000;
-// La DIAN puede demorar: más que el límite del backend (30 s).
-const TIEMPO_FACTURA_MS = 35000;
+// La DIAN puede demorar: más que el límite del backend (60 s).
+const TIEMPO_FACTURA_MS = 65000;
 const PASOS = ["pendiente", "pagado", "facturado"];
 
 function Dato({ etiqueta, children }) {

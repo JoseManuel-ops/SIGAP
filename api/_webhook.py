@@ -2,13 +2,12 @@
 # en segundo plano. La factura se emite después, en un endpoint aparte.
 import hmac
 import logging
-import os
 from decimal import Decimal, InvalidOperation
 
 from fastapi import HTTPException
 from sqlmodel import Session
 
-from api._db import ConfiguracionError
+from api._db import ConfiguracionError, variable
 from api._despachos import registrar_pago
 from api._factus_pay import parsear_fecha
 
@@ -18,7 +17,7 @@ MONTO_MAXIMO_REPORTADO = 1_000_000_000
 
 
 def validar_llave(llave: str | None) -> None:
-    esperada = os.getenv("FACTUS_WEBHOOK_KEY")
+    esperada = variable("FACTUS_WEBHOOK_KEY")
     if not esperada:
         raise ConfiguracionError("Falta la variable de entorno FACTUS_WEBHOOK_KEY")
     # Comparación de tiempo constante: el tiempo de respuesta no revela cuánto acertó.
