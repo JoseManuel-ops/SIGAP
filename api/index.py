@@ -9,8 +9,8 @@ from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select
 
-from api import _despachos, _facturas, _webhook
-from api._auth import usuario_actual
+from api import _conciliacion, _despachos, _facturas, _webhook
+from api._auth import solo_admin, usuario_actual
 from api._db import ConfiguracionError, obtener_engine
 from api._factus_pay import ErrorFactus
 from api._jaulas import consultar_detalle, consultar_resumenes
@@ -153,6 +153,12 @@ def facturar_despacho(reference_code: str):
 def descargar_factura(reference_code: str):
     with Session(obtener_engine()) as sesion:
         return _facturas.descargar_pdf(sesion, reference_code)
+
+
+@protegido.get("/conciliacion", dependencies=[Depends(solo_admin)])
+def ver_conciliacion():
+    with Session(obtener_engine()) as sesion:
+        return _conciliacion.consultar(sesion)
 
 
 app.include_router(protegido)

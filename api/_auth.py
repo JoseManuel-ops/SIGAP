@@ -81,3 +81,10 @@ def usuario_actual(credenciales: HTTPAuthorizationCredentials | None = Depends(e
         raise HTTPException(status_code=403, detail="Tu usuario no tiene un rol asignado en SIGAP")
 
     return {"id": datos["sub"], "email": datos.get("email"), "rol": rol}
+
+
+# Para rutas exclusivas de administración. Ocultar el menú no basta: esto lo valida el servidor.
+def solo_admin(usuario: dict = Depends(usuario_actual)) -> dict:
+    if usuario["rol"] != "admin":
+        raise HTTPException(status_code=403, detail="Esta acción es solo para administradores")
+    return usuario

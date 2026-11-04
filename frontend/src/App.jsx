@@ -6,10 +6,10 @@ import { supabase } from "./lib/supabase.js";
 import DespachoDetalle from "./pages/DespachoDetalle.jsx";
 import Despachos from "./pages/Despachos.jsx";
 import Jaulas from "./pages/Jaulas.jsx";
+import Conciliacion from "./pages/Conciliacion.jsx";
 import Login from "./pages/Login.jsx";
 import NuevoDespacho from "./pages/NuevoDespacho.jsx";
 import PagoPublico from "./pages/PagoPublico.jsx";
-import Proximamente from "./pages/Proximamente.jsx";
 
 const ROLES_VALIDOS = ["admin", "operario"];
 
@@ -78,7 +78,7 @@ function AreaPrivada() {
         <Route path="/despachos/:ref" element={<DespachoDetalle />} />
         <Route
           path="/conciliacion"
-          element={rol === "admin" ? <Proximamente titulo="Conciliación" /> : <Navigate to="/jaulas" replace />}
+          element={rol === "admin" ? <Conciliacion /> : <Navigate to="/jaulas" replace />}
         />
         <Route path="*" element={<Navigate to="/jaulas" replace />} />
       </Route>
