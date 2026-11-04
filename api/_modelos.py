@@ -125,6 +125,16 @@ class Cobro(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_type=DateTime(timezone=True))
 
 
+class FactusToken(SQLModel, table=True):
+    __tablename__ = "factus_token"
+
+    id: Optional[int] = Field(default=1, primary_key=True)
+    access_token: str = ""
+    refresh_token: Optional[str] = None
+    expires_at: Optional[datetime] = Field(default=None, sa_type=DateTime(timezone=True))
+    updated_at: Optional[datetime] = Field(default=None, sa_type=DateTime(timezone=True))
+
+
 class Factura(SQLModel, table=True):
     __tablename__ = "factura"
 

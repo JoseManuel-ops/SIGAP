@@ -176,8 +176,7 @@ def main():
                     ph=Decimal(PH[i]),
                 ))
 
-        # Comprador de prueba: datos ficticios. El código de municipio queda sin definir
-        # hasta confirmarlo en las tablas de Factus.
+        # Comprador de prueba: datos ficticios. 41001 es Neiva en las tablas de Factus.
         comprador = Comprador(
             names="Comprador de Prueba SIGAP",
             identification="123456789",
@@ -185,6 +184,7 @@ def main():
             phone="3000000000",
             address="Calle 1 # 1-01",
             municipio="Neiva",
+            municipio_codigo_factus="41001",
         )
         sesion.add(comprador)
         sesion.flush()

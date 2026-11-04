@@ -72,7 +72,7 @@ create table calidad_agua (
 
 -- ---------- Venta ----------
 
--- Persona natural. El código de municipio de Factus queda vacío hasta confirmarlo en sus tablas.
+-- Persona natural. municipio_codigo_factus viene de la tabla de municipios de Factus (Neiva: 41001).
 create table comprador (
   id bigint generated always as identity primary key,
   names text not null,
@@ -130,6 +130,16 @@ create table factura (
   validated_at timestamptz,
   created_at timestamptz not null default now()
 );
+
+-- Token OAuth de Factus Facturación: una sola fila. Serverless no guarda nada en memoria.
+create table factus_token (
+  id integer primary key default 1 check (id = 1),
+  access_token text not null,
+  refresh_token text,
+  expires_at timestamptz not null,
+  updated_at timestamptz not null default now()
+);
+alter table factus_token enable row level security;
 
 -- ---------- Seguridad ----------
 

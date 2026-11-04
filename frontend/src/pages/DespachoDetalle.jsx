@@ -1,10 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import { CuentaRegresiva, EstadoBadge, ImagenQR, LlaveBreB } from "../components/Pago.jsx";
 import { apiGet, apiPost } from "../lib/api.js";
 import { fechaHora, kilos, pesos } from "../lib/formato.js";
+import { descargarPdfFactura } from "../lib/pdf.js";
 
 const INTERVALO_MS = 5000;
+// La DIAN puede demorar: más que el límite del backend (30 s).
+const TIEMPO_FACTURA_MS = 35000;
+const PASOS = ["pendiente", "pagado", "facturado"];
 
 function Dato({ etiqueta, children }) {
   return (
@@ -15,6 +19,24 @@ function Dato({ etiqueta, children }) {
   );
 }
 
+// Avance pendiente → pagado → facturado.
+function Pasos({ estado }) {
+  const actual = PASOS.indexOf(estado);
+  if (actual === -1) return null;
+  return (
+    <ol className="mt-4 flex items-center gap-2 text-xs sm:text-sm" aria-label="Avance del despacho">
+      {PASOS.map((paso, i) => (
+        <li key={paso} className="flex items-center gap-2" aria-current={i === actual ? "step" : undefined}>
+          {i > 0 && <span className={`h-px w-4 sm:w-8 ${i <= actual ? "bg-teal-700" : "bg-slate-300"}`} aria-hidden="true" />}
+          <span className={`rounded-full px-2.5 py-1 font-medium capitalize ${i <= actual ? "bg-teal-800 text-white" : "bg-slate-100 text-slate-500"}`}>
+            {paso}
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 export default function DespachoDetalle() {
   const { ref } = useParams();
   const { state } = useLocation();
@@ -22,6 +44,8 @@ export default function DespachoDetalle() {
   const [error, setError] = useState(state?.errorCobro ?? "");
   const [aviso, setAviso] = useState("");
   const [accion, setAccion] = useState("");
+  // Evita repetir la facturación automática de esta referencia si falla o se vuelve a renderizar.
+  const autoFacturada = useRef(null);
 
   const cargar = useCallback(() => apiGet(`/api/despachos/${ref}`).then(setDespacho), [ref]);
 
@@ -42,14 +66,40 @@ export default function DespachoDetalle() {
     };
   }, [cargar, esperandoPago]);
 
-  async function ejecutar(nombre, ruta) {
+  const ejecutar = useCallback(async (nombre, ruta, tiempoMs) => {
     setAccion(nombre);
     setError("");
     setAviso("");
     try {
-      const actualizado = await apiPost(ruta);
+      const actualizado = await apiPost(ruta, undefined, tiempoMs);
       setDespacho(actualizado);
       setAviso(actualizado.aviso ?? "");
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setAccion("");
+    }
+  }, []);
+
+  const facturar = useCallback(
+    () => ejecutar("facturar", `/api/despachos/${ref}/facturar`, TIEMPO_FACTURA_MS),
+    [ejecutar, ref]
+  );
+
+  // Cuando el despacho pasa a pagado se factura solo, una vez. Si falla queda el botón de respaldo.
+  const estado = despacho?.estado;
+  useEffect(() => {
+    if (estado === "pagado" && autoFacturada.current !== ref) {
+      autoFacturada.current = ref;
+      facturar();
+    }
+  }, [estado, ref, facturar]);
+
+  async function descargarPdf() {
+    setAccion("pdf");
+    setError("");
+    try {
+      await descargarPdfFactura(ref);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -65,10 +115,12 @@ export default function DespachoDetalle() {
     );
   }
 
-  const { cobro } = despacho;
+  const { cobro, factura } = despacho;
   const enlacePago = `${window.location.origin}/pagar/${despacho.reference_code}`;
   const estiloSecundario =
     "rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium transition-colors hover:bg-slate-50 disabled:opacity-60";
+  const estiloPrincipal =
+    "rounded-lg bg-teal-800 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-teal-900 disabled:opacity-60";
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -80,10 +132,11 @@ export default function DespachoDetalle() {
         <EstadoBadge estado={despacho.estado} esDemo={despacho.is_demo} />
       </div>
       <p className="mt-1 break-all text-xs text-slate-500">{despacho.reference_code}</p>
+      <Pasos estado={despacho.estado} />
 
       {error && <p role="alert" className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>}
       {aviso && <p role="status" className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">{aviso}</p>}
-      {cobro?.monto_no_coincide && (
+      {cobro?.monto_no_coincide && despacho.estado !== "pagado" && despacho.estado !== "facturado" && (
         <p role="alert" className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-800">
           Factus Pay reportó un pago de {pesos(cobro.paid_amount)}, distinto al total de {pesos(despacho.total)}. El despacho no se marcó como pagado.
         </p>
@@ -126,24 +179,62 @@ export default function DespachoDetalle() {
           </div>
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="font-semibold">Datos del despacho</h2>
-          <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
-            <Dato etiqueta="Kilos">{kilos(despacho.kilos)}</Dato>
-            <Dato etiqueta="Precio por kg">{pesos(despacho.precio_kg)}</Dato>
-            <Dato etiqueta="Total"><span className="text-lg font-bold tabular-nums">{pesos(despacho.total)}</span></Dato>
-            <Dato etiqueta="Fecha">{fechaHora(despacho.fecha)}</Dato>
-            <div className="col-span-2"><Dato etiqueta="Comprador">{despacho.comprador}</Dato></div>
-          </dl>
-          {cobro && (
-            <div className="mt-4 border-t border-slate-100 pt-4">
-              <p className="text-xs text-slate-500">Enlace de pago para el comprador</p>
-              <a href={enlacePago} target="_blank" rel="noreferrer" className="mt-1 block break-all text-sm font-medium text-teal-800 underline underline-offset-2">
-                {enlacePago}
-              </a>
-            </div>
+        <div className="space-y-4">
+          <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="font-semibold">Datos del despacho</h2>
+            <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
+              <Dato etiqueta="Kilos">{kilos(despacho.kilos)}</Dato>
+              <Dato etiqueta="Precio por kg">{pesos(despacho.precio_kg)}</Dato>
+              <Dato etiqueta="Total"><span className="text-lg font-bold tabular-nums">{pesos(despacho.total)}</span></Dato>
+              <Dato etiqueta="Fecha">{fechaHora(despacho.fecha)}</Dato>
+              <div className="col-span-2"><Dato etiqueta="Comprador">{despacho.comprador}</Dato></div>
+            </dl>
+            {cobro && (
+              <div className="mt-4 border-t border-slate-100 pt-4">
+                <p className="text-xs text-slate-500">Enlace de pago para el comprador</p>
+                <a href={enlacePago} target="_blank" rel="noreferrer" className="mt-1 block break-all text-sm font-medium text-teal-800 underline underline-offset-2">
+                  {enlacePago}
+                </a>
+              </div>
+            )}
+          </section>
+
+          {(factura || despacho.estado === "pagado") && (
+            <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h2 className="font-semibold">Factura electrónica</h2>
+              {!factura && (
+                <>
+                  <p className="mt-3 text-sm text-slate-600">
+                    {accion === "facturar" ? "Emitiendo la factura ante la DIAN..." : "Este despacho está pagado y aún no tiene factura."}
+                  </p>
+                  <button type="button" disabled={Boolean(accion)} onClick={facturar} className={`mt-4 ${estiloPrincipal}`}>
+                    {accion === "facturar" ? "Facturando..." : "Facturar"}
+                  </button>
+                </>
+              )}
+              {factura && (
+                <>
+                  <dl className="mt-3 space-y-3 text-sm">
+                    <Dato etiqueta="Número">{factura.number}</Dato>
+                    <Dato etiqueta="Validada">{fechaHora(factura.validated_at)}</Dato>
+                    <Dato etiqueta="CUFE"><span className="break-all font-mono text-xs font-normal">{factura.cufe}</span></Dato>
+                  </dl>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button type="button" disabled={Boolean(accion)} onClick={descargarPdf} className={estiloPrincipal}>
+                      {accion === "pdf" ? "Descargando..." : "Descargar PDF"}
+                    </button>
+                    {factura.public_url && (
+                      <a href={factura.public_url} target="_blank" rel="noreferrer" className={estiloSecundario}>Ver factura</a>
+                    )}
+                    {factura.qr_url && (
+                      <a href={factura.qr_url} target="_blank" rel="noreferrer" className={estiloSecundario}>Consultar en la DIAN</a>
+                    )}
+                  </div>
+                </>
+              )}
+            </section>
           )}
-        </section>
+        </div>
       </div>
     </div>
   );

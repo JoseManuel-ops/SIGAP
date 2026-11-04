@@ -4,10 +4,10 @@ import { supabase } from "./supabase.js";
 const TIEMPO_MAXIMO_MS = 20000;
 
 // Hace la petición y convierte cualquier fallo en un Error con un mensaje para el usuario.
-async function pedir(ruta, opciones = {}) {
+async function pedir(ruta, { tiempoMs = TIEMPO_MAXIMO_MS, ...opciones } = {}) {
   let respuesta;
   try {
-    respuesta = await fetch(ruta, { ...opciones, signal: AbortSignal.timeout(TIEMPO_MAXIMO_MS) });
+    respuesta = await fetch(ruta, { ...opciones, signal: AbortSignal.timeout(tiempoMs) });
   } catch (error) {
     if (error.name === "TimeoutError") {
       throw new Error("El servidor tardó demasiado en responder.");
@@ -51,8 +51,9 @@ export function apiGet(ruta) {
   return pedirConSesion(ruta);
 }
 
-export function apiPost(ruta, datos) {
+export function apiPost(ruta, datos, tiempoMs) {
   return pedirConSesion(ruta, {
+    tiempoMs,
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: datos === undefined ? undefined : JSON.stringify(datos),

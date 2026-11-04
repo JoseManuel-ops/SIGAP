@@ -9,7 +9,7 @@ from sqlmodel import Session, select
 
 from api._factus_pay import ErrorFactus, consultar_cobro, crear_cobro, parsear_fecha
 from api._jaulas import consultar_resumenes
-from api._modelos import Cobro, Comprador, Despacho, Jaula, Lote
+from api._modelos import Cobro, Comprador, Despacho, Factura, Jaula, Lote
 
 PRECIO_KG = 10_000
 KILOS_MAXIMOS = Decimal(1200)
@@ -33,7 +33,7 @@ def estado_visible(despacho: Despacho, cobro: Cobro | None) -> str:
     return despacho.estado
 
 
-def a_dict(despacho: Despacho, codigo_jaula: str, comprador: str, cobro: Cobro | None) -> dict:
+def a_dict(despacho: Despacho, codigo_jaula: str, comprador: str, cobro: Cobro | None, factura: Factura | None = None) -> dict:
     return {
         "reference_code": despacho.reference_code,
         "jaula": codigo_jaula,
@@ -53,16 +53,24 @@ def a_dict(despacho: Despacho, codigo_jaula: str, comprador: str, cobro: Cobro |
             # El pago llegó, pero no coincide con el total: el despacho no se marca pagado.
             "monto_no_coincide": cobro.paid_amount is not None and cobro.paid_amount != despacho.total,
         },
+        "factura": None if factura is None or not factura.number else {
+            "number": factura.number,
+            "cufe": factura.cufe,
+            "public_url": factura.public_url,
+            "qr_url": factura.qr_url,
+            "validated_at": factura.validated_at,
+        },
     }
 
 
 def _consulta_base():
     return (
-        select(Despacho, Jaula.codigo, Comprador.names, Cobro)
+        select(Despacho, Jaula.codigo, Comprador.names, Cobro, Factura)
         .join(Lote, Despacho.lote_id == Lote.id)
         .join(Jaula, Lote.jaula_id == Jaula.id)
         .join(Comprador, Despacho.comprador_id == Comprador.id)
         .join(Cobro, Cobro.reference_code == Despacho.reference_code, isouter=True)
+        .join(Factura, Factura.reference_code == Despacho.reference_code, isouter=True)
     )
 
 

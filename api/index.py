@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select
 
-from api import _despachos, _webhook
+from api import _despachos, _facturas, _webhook
 from api._auth import usuario_actual
 from api._db import ConfiguracionError, obtener_engine
 from api._factus_pay import ErrorFactus
@@ -140,6 +140,19 @@ def verificar_despacho(reference_code: str):
 def regenerar_qr(reference_code: str):
     with Session(obtener_engine()) as sesion:
         return _despachos.regenerar_qr(sesion, reference_code)
+
+
+# Emite la factura de un despacho pagado. Es idempotente.
+@protegido.post("/despachos/{reference_code}/facturar")
+def facturar_despacho(reference_code: str):
+    with Session(obtener_engine()) as sesion:
+        return _facturas.facturar(sesion, reference_code)
+
+
+@protegido.get("/despachos/{reference_code}/factura/pdf")
+def descargar_factura(reference_code: str):
+    with Session(obtener_engine()) as sesion:
+        return _facturas.descargar_pdf(sesion, reference_code)
 
 
 app.include_router(protegido)
