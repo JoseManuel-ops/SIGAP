@@ -145,4 +145,8 @@ class Factura(SQLModel, table=True):
     public_url: Optional[str] = None
     qr_url: Optional[str] = None
     validated_at: Optional[datetime] = Field(default=None, sa_type=DateTime(timezone=True))
+    nota_credito_number: Optional[str] = None
+    nota_credito_cufe: Optional[str] = None
+    nota_credito_public_url: Optional[str] = None
+    anulada_at: Optional[datetime] = Field(default=None, sa_type=DateTime(timezone=True))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_type=DateTime(timezone=True))

@@ -59,6 +59,10 @@ def a_dict(despacho: Despacho, codigo_jaula: str, comprador: str, cobro: Cobro |
             "public_url": factura.public_url,
             "qr_url": factura.qr_url,
             "validated_at": factura.validated_at,
+            "nota_credito_number": factura.nota_credito_number,
+            "nota_credito_cufe": factura.nota_credito_cufe,
+            "nota_credito_public_url": factura.nota_credito_public_url,
+            "anulada_at": factura.anulada_at,
         },
     }
 

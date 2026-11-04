@@ -37,13 +37,15 @@ function Pasos({ estado }) {
   );
 }
 
-export default function DespachoDetalle() {
+export default function DespachoDetalle({ rol }) {
   const { ref } = useParams();
   const { state } = useLocation();
   const [despacho, setDespacho] = useState(null);
   const [error, setError] = useState(state?.errorCobro ?? "");
   const [aviso, setAviso] = useState("");
   const [accion, setAccion] = useState("");
+  const [anulando, setAnulando] = useState(false);
+  const [motivo, setMotivo] = useState("");
   // Evita repetir la facturación automática de esta referencia si falla o se vuelve a renderizar.
   const autoFacturada = useRef(null);
 
@@ -94,6 +96,20 @@ export default function DespachoDetalle() {
       facturar();
     }
   }, [estado, ref, facturar]);
+
+  async function anular(evento) {
+    evento.preventDefault();
+    setAccion("anular");
+    setError("");
+    try {
+      setDespacho(await apiPost(`/api/despachos/${ref}/anular`, { motivo }, TIEMPO_FACTURA_MS));
+      setAnulando(false);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setAccion("");
+    }
+  }
 
   async function descargarPdf() {
     setAccion("pdf");
@@ -230,6 +246,50 @@ export default function DespachoDetalle() {
                       <a href={factura.qr_url} target="_blank" rel="noreferrer" className={estiloSecundario}>Consultar en la DIAN</a>
                     )}
                   </div>
+
+                  {factura.nota_credito_number && (
+                    <div className="mt-4 rounded-lg bg-slate-100 p-3 text-sm">
+                      <p className="font-medium">Factura anulada con la nota crédito {factura.nota_credito_number}</p>
+                      <p className="mt-0.5 text-slate-600">{fechaHora(factura.anulada_at)}</p>
+                      {factura.nota_credito_public_url && (
+                        <a href={factura.nota_credito_public_url} target="_blank" rel="noreferrer" className="mt-1 inline-block font-medium text-teal-800 underline underline-offset-2">
+                          Ver nota crédito
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Solo oculta el botón: quien valida el rol es el backend. */}
+                  {rol === "admin" && despacho.estado === "facturado" && !anulando && (
+                    <button type="button" disabled={Boolean(accion)} onClick={() => setAnulando(true)} className="mt-4 text-sm font-medium text-red-800 underline underline-offset-2">
+                      Anular con nota crédito
+                    </button>
+                  )}
+                  {anulando && (
+                    <form onSubmit={anular} className="mt-4 space-y-3 rounded-lg border border-red-200 p-3">
+                      <p className="text-sm font-medium text-red-800">
+                        Se enviará a la DIAN una nota crédito por {pesos(despacho.total)}. Esta acción no se puede deshacer y no devuelve el dinero al comprador.
+                      </p>
+                      <div>
+                        <label htmlFor="motivo" className="text-sm font-medium text-slate-700">Motivo</label>
+                        <input
+                          id="motivo"
+                          required
+                          minLength={3}
+                          maxLength={300}
+                          value={motivo}
+                          onChange={(e) => setMotivo(e.target.value)}
+                          className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-base outline-none focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20"
+                        />
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button type="submit" disabled={Boolean(accion)} className="rounded-lg bg-red-800 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-900 disabled:opacity-60">
+                          {accion === "anular" ? "Anulando..." : "Confirmar anulación"}
+                        </button>
+                        <button type="button" disabled={Boolean(accion)} onClick={() => setAnulando(false)} className={estiloSecundario}>Cancelar</button>
+                      </div>
+                    </form>
+                  )}
                 </>
               )}
             </section>

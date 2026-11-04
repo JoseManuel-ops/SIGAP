@@ -55,6 +55,7 @@ def consultar(sesion: Session) -> dict:
             "numero_factura": factura.number if factura else None,
             "cufe": factura.cufe if factura else None,
             "enlace_factura": factura.public_url if factura else None,
+            "nota_credito": factura.nota_credito_number if factura else None,
             "alerta": None if despacho.is_demo else _alerta(despacho, cobro, factura),
         })
 

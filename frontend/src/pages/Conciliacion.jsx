@@ -61,7 +61,10 @@ function Fila({ registro: r, alError }) {
         <>
           <td className={celda}>{ETIQUETAS_COBRO[r.estado_cobro] ?? r.estado_cobro ?? "Sin cobro"}</td>
           <td className={celda}>{fechaHora(r.fecha_pago)}</td>
-          <td className={celda}>{r.numero_factura ?? "—"}</td>
+          <td className={celda}>
+            {r.numero_factura ?? "—"}
+            {r.nota_credito && <p className="text-xs text-slate-500">Anulada con {r.nota_credito}</p>}
+          </td>
           <td className={celda}>
             {r.cufe ? <span className="block max-w-32 truncate font-mono text-xs" title={r.cufe}>{r.cufe}</span> : "—"}
           </td>

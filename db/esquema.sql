@@ -128,6 +128,11 @@ create table factura (
   public_url text,
   qr_url text,
   validated_at timestamptz,
+  -- Nota crédito que anula la factura. Vacíos mientras la factura esté vigente.
+  nota_credito_number text unique,
+  nota_credito_cufe text unique,
+  nota_credito_public_url text,
+  anulada_at timestamptz,
   created_at timestamptz not null default now()
 );
 

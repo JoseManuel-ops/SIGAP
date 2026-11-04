@@ -75,7 +75,7 @@ function AreaPrivada() {
         <Route path="/jaulas" element={<Jaulas />} />
         <Route path="/despachos" element={<Despachos />} />
         <Route path="/despachos/nuevo" element={<NuevoDespacho />} />
-        <Route path="/despachos/:ref" element={<DespachoDetalle />} />
+        <Route path="/despachos/:ref" element={<DespachoDetalle rol={rol} />} />
         <Route
           path="/conciliacion"
           element={rol === "admin" ? <Conciliacion /> : <Navigate to="/jaulas" replace />}

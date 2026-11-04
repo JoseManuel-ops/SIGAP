@@ -5,11 +5,11 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select
 
-from api import _conciliacion, _despachos, _facturas, _webhook
+from api import _conciliacion, _dashboard, _despachos, _facturas, _nota_credito, _webhook
 from api._auth import solo_admin, usuario_actual
 from api._db import ConfiguracionError, obtener_engine
 from api._factus_pay import ErrorFactus
@@ -153,6 +153,23 @@ def facturar_despacho(reference_code: str):
 def descargar_factura(reference_code: str):
     with Session(obtener_engine()) as sesion:
         return _facturas.descargar_pdf(sesion, reference_code)
+
+
+class Anulacion(BaseModel):
+    motivo: str = Field(min_length=3, max_length=300)
+
+
+# Anula una factura validada con nota crédito.
+@protegido.post("/despachos/{reference_code}/anular", dependencies=[Depends(solo_admin)])
+def anular_despacho(reference_code: str, datos: Anulacion):
+    with Session(obtener_engine()) as sesion:
+        return _nota_credito.anular(sesion, reference_code, datos.motivo.strip())
+
+
+@protegido.get("/dashboard")
+def ver_dashboard():
+    with Session(obtener_engine()) as sesion:
+        return _dashboard.consultar(sesion)
 
 
 @protegido.get("/conciliacion", dependencies=[Depends(solo_admin)])

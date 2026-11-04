@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { TriangleAlert } from "lucide-react";
+import Dashboard from "../components/Dashboard.jsx";
 import { apiGet } from "../lib/api.js";
 
 const ETIQUETAS_FASE = {
@@ -131,6 +132,8 @@ export default function Jaulas() {
           ))}
         </div>
       )}
+
+      <Dashboard />
     </>
   );
 }
