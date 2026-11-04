@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select
 
-from api import _despachos
+from api import _despachos, _webhook
 from api._auth import usuario_actual
 from api._db import ConfiguracionError, obtener_engine
 from api._factus_pay import ErrorFactus
@@ -66,6 +66,19 @@ def health():
 def ver_pago(reference_code: str):
     with Session(obtener_engine()) as sesion:
         return _despachos.obtener_publico(sesion, reference_code)
+
+
+# Pública, protegida con la llave de la URL. Factus reintenta si no recibe 200 en 10 s.
+@app.post("/api/webhooks/factus-pay")
+async def webhook_factus_pay(request: Request, key: str | None = None):
+    # La llave se valida antes de leer el cuerpo o tocar la base de datos.
+    _webhook.validar_llave(key)
+    try:
+        cuerpo = await request.json()
+    except ValueError:
+        return {"resultado": "ignorado"}
+    with Session(obtener_engine()) as sesion:
+        return _webhook.procesar(sesion, cuerpo)
 
 
 # Resumen de todas las jaulas: biomasa, densidad, peso, días y alertas.

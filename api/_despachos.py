@@ -149,7 +149,7 @@ def registrar_pago(
     if cobro is None:
         cobro = Cobro(reference_code=reference_code, amount=despacho.total, status="paid")
     cobro.status = "paid"
-    cobro.paid_amount = int(monto) if monto == monto.to_integral_value() else int(monto.to_integral_value(ROUND_HALF_UP))
+    cobro.paid_amount = int(monto.to_integral_value(ROUND_HALF_UP))
     cobro.collected_at = collected_at or ahora()
     if payer:
         cobro.payer = payer
