@@ -35,6 +35,16 @@ npm run dev
 
 Abrir http://localhost:5173: debe mostrar `SIGAP` y `/api/health: {"status":"ok"}`.
 
+## Base de datos
+
+El esquema está en `db/esquema.sql` (aplicado en Supabase como migración). Para cargar los datos de demostración, con `DATABASE_URL` en el `.env`:
+
+```powershell
+python -m scripts.cargar_demo
+```
+
+Si los datos ya existen, el script no hace nada.
+
 ## Desplegar
 
 Importar el repositorio en Vercel con la raíz del proyecto como directorio raíz. La configuración de build está en `vercel.json`. Las variables de entorno se configuran en el panel de Vercel.
