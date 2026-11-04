@@ -33,7 +33,7 @@ pendiente → pagado → facturado. También: fallido, expirado, anulado (con no
 
 ## Factus Pay (sandbox: https://pay-api-sandbox.factus.com.co)
 - POST /auth (JSON: email, password) → token que no vence. Cada /auth anula el anterior: usar el token guardado en la variable FACTUS_PAY_TOKEN.
-- POST /v1/collections (reference_code, amount 1000–12100000 COP, expiration en segundos) → status ready, breb_key, qr (PNG base64).
+- POST /v1/collections (reference_code, amount 10000–12100000 COP, expiration en segundos) → status ready, breb_key, qr (PNG base64).
 - GET /v1/collections/{reference_code} → estado (ready, paid, failed).
 - GET /v1/collections?status=&reference_code= → listado paginado (15 por página).
 - Webhook: POST a nuestra URL con ?key=LLAVE; body data.reference_code, amount, status "paid", payer opcional. Hasta 6 reintentos, timeout 10 s.
