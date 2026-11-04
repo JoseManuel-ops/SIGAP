@@ -1,23 +1,82 @@
 import { useEffect, useState } from "react";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router";
+import Layout from "./components/Layout.jsx";
+import { cerrarSesion, tomarMotivoDeCierre } from "./lib/sesion.js";
+import { supabase } from "./lib/supabase.js";
+import Jaulas from "./pages/Jaulas.jsx";
+import Login from "./pages/Login.jsx";
+import Proximamente from "./pages/Proximamente.jsx";
+
+const ROLES_VALIDOS = ["admin", "operario"];
+
+function PantallaCentrada({ children }) {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-50 p-4 text-center text-slate-600">
+      {children}
+    </main>
+  );
+}
 
 export default function App() {
-  const [resultado, setResultado] = useState("Consultando...");
+  // undefined: todavía no se sabe si hay sesión. null: no hay sesión.
+  const [sesion, setSesion] = useState(undefined);
+  const [avisoLogin, setAvisoLogin] = useState("");
 
-  // Consulta el estado de la API al abrir la página.
+  // Lee la sesión guardada y escucha los cambios (inicio, cierre y renovación del token).
   useEffect(() => {
-    fetch("/api/health")
-      .then(async (respuesta) => {
-        if (!respuesta.ok) throw new Error(`Error ${respuesta.status}`);
-        return JSON.stringify(await respuesta.json());
-      })
-      .then(setResultado)
-      .catch((error) => setResultado(`No se pudo consultar la API: ${error.message}`));
+    if (!supabase) return;
+    supabase.auth.getSession().then(({ data }) => setSesion(data.session));
+    const { data } = supabase.auth.onAuthStateChange((evento, nuevaSesion) => {
+      if (evento === "SIGNED_OUT") setAvisoLogin(tomarMotivoDeCierre());
+      if (evento === "SIGNED_IN") setAvisoLogin("");
+      setSesion(nuevaSesion);
+    });
+    return () => data.subscription.unsubscribe();
   }, []);
 
+  if (!supabase) {
+    return <PantallaCentrada>Falta configurar VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.</PantallaCentrada>;
+  }
+  if (sesion === undefined) {
+    return <PantallaCentrada>Cargando...</PantallaCentrada>;
+  }
+  if (sesion === null) {
+    return <Login aviso={avisoLogin} />;
+  }
+
+  // El rol solo decide qué se muestra en pantalla. Quien protege los datos es el backend.
+  const rol = sesion.user.app_metadata?.role;
+
+  if (!ROLES_VALIDOS.includes(rol)) {
+    return (
+      <PantallaCentrada>
+        <p role="alert" className="max-w-sm rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-800">
+          {sesion.user.email} no tiene un rol asignado en SIGAP. Pide a un administrador que te lo asigne.
+        </p>
+        <button
+          type="button"
+          onClick={() => cerrarSesion()}
+          className="rounded-lg bg-teal-800 px-4 py-2.5 font-medium text-white transition-colors hover:bg-teal-900"
+        >
+          Cerrar sesión
+        </button>
+      </PantallaCentrada>
+    );
+  }
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-white p-4 text-slate-900">
-      <h1 className="text-5xl font-bold">SIGAP</h1>
-      <p className="font-mono text-sm">/api/health: {resultado}</p>
-    </main>
+    <BrowserRouter>
+      <Routes>
+        <Route element={<Layout usuario={sesion.user} rol={rol} />}>
+          <Route path="/jaulas" element={<Jaulas />} />
+          <Route path="/despachos" element={<Proximamente titulo="Despachos" />} />
+          <Route
+            path="/conciliacion"
+            element={rol === "admin" ? <Proximamente titulo="Conciliación" /> : <Navigate to="/jaulas" replace />}
+          />
+          <Route path="*" element={<Navigate to="/jaulas" replace />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }

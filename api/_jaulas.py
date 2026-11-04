@@ -23,6 +23,11 @@ def hoy_colombia() -> date:
     return datetime.now(ZONA_COLOMBIA).date()
 
 
+# Los mensajes de alerta se leen en pantalla: decimales con coma, como en Colombia.
+def con_coma(valor: Decimal) -> str:
+    return str(valor).replace(".", ",")
+
+
 # Compara el último registro de agua con los rangos de referencia.
 def calcular_alertas(agua: CalidadAgua | None) -> list[dict]:
     if agua is None:
@@ -32,19 +37,19 @@ def calcular_alertas(agua: CalidadAgua | None) -> list[dict]:
     if agua.oxigeno_mg_l < OXIGENO_MIN_MG_L:
         alertas.append({
             "tipo": "oxigeno_bajo",
-            "mensaje": f"Oxígeno en {agua.oxigeno_mg_l} mg/L (mínimo {OXIGENO_MIN_MG_L})",
+            "mensaje": f"Oxígeno en {con_coma(agua.oxigeno_mg_l)} mg/L (mínimo {con_coma(OXIGENO_MIN_MG_L)})",
             "fecha": agua.fecha,
         })
     if not TEMPERATURA_MIN_C <= agua.temperatura_c <= TEMPERATURA_MAX_C:
         alertas.append({
             "tipo": "temperatura_fuera_de_rango",
-            "mensaje": f"Temperatura en {agua.temperatura_c} °C (rango {TEMPERATURA_MIN_C}–{TEMPERATURA_MAX_C})",
+            "mensaje": f"Temperatura en {con_coma(agua.temperatura_c)} °C (rango {con_coma(TEMPERATURA_MIN_C)}–{con_coma(TEMPERATURA_MAX_C)})",
             "fecha": agua.fecha,
         })
     if not PH_MIN <= agua.ph <= PH_MAX:
         alertas.append({
             "tipo": "ph_fuera_de_rango",
-            "mensaje": f"pH en {agua.ph} (rango {PH_MIN}–{PH_MAX})",
+            "mensaje": f"pH en {con_coma(agua.ph)} (rango {con_coma(PH_MIN)}–{con_coma(PH_MAX)})",
             "fecha": agua.fecha,
         })
     return alertas

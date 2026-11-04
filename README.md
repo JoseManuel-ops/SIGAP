@@ -33,7 +33,7 @@ npm install
 npm run dev
 ```
 
-Abrir http://localhost:5173: debe mostrar `SIGAP` y `/api/health: {"status":"ok"}`.
+Abrir http://localhost:5173 e iniciar sesión con un usuario de Supabase Auth (`admin@sigap.demo` u `operario@sigap.demo`).
 
 ## Base de datos
 

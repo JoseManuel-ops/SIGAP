@@ -1,16 +1,20 @@
 # Punto de entrada de la API de SIGAP (función serverless de Python en Vercel).
 import logging
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 
+from api._auth import usuario_actual
 from api._db import ConfiguracionError, obtener_engine
 from api._jaulas import consultar_detalle, consultar_resumenes
 
 app = FastAPI(title="SIGAP API")
 logger = logging.getLogger("sigap")
+
+# Toda ruta de este router exige un token válido. Las públicas se declaran aparte, en app.
+protegido = APIRouter(prefix="/api", dependencies=[Depends(usuario_actual)])
 
 
 # Errores de base de datos: el detalle va al log para no exponer datos de conexión.
@@ -32,24 +36,27 @@ def error_configuracion(_: Request, error: ConfiguracionError):
     )
 
 
-# Permite comprobar que la API está en línea.
+# Pública: permite comprobar que la API está en línea.
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
 
 
 # Resumen de todas las jaulas: biomasa, densidad, peso, días y alertas.
-@app.get("/api/jaulas")
+@protegido.get("/jaulas")
 def listar_jaulas():
     with Session(obtener_engine()) as sesion:
         return consultar_resumenes(sesion)
 
 
 # Detalle de una jaula por su código (por ejemplo, J-04).
-@app.get("/api/jaulas/{codigo}")
+@protegido.get("/jaulas/{codigo}")
 def ver_jaula(codigo: str):
     with Session(obtener_engine()) as sesion:
         detalle = consultar_detalle(sesion, codigo.upper())
     if detalle is None:
         raise HTTPException(status_code=404, detail=f"No existe la jaula {codigo}")
     return detalle
+
+
+app.include_router(protegido)
