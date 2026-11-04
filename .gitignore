@@ -1,0 +1,26 @@
+# Variables de entorno y credenciales
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+frontend/dist/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Vercel
+.vercel/
+
+# Sistema y editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Configuración local de Claude Code y MCP
+.claude/settings.local.json
+.mcp.json
